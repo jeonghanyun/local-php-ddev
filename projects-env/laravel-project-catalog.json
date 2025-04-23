@@ -1,0 +1,26 @@
+[
+  {
+    "id": "laravel-site-001",
+    "name": "laravel-site",
+    "type": "laravel",
+    "framework": "laravel",
+    "framework_version": "10.x",
+    "repoUrl": "",
+    "branch": "main",
+    "memo": "기본 라라벨 사이트",
+    "created_at": "2024-04-26",
+    "last_updated": "2024-04-26"
+  },
+  {
+    "id": "laravel-dalsoop-001",
+    "name": "laravel-dalsoop",
+    "type": "laravel",
+    "framework": "laravel",
+    "framework_version": "10.x",
+    "repoUrl": "https://github.com/jeonghanyun/ddev-laravel-dalsoop.git",
+    "branch": "main",
+    "memo": "Laravel Dalsoop 프로젝트 - DDEV 기반 로컬 개발 환경",
+    "created_at": "2024-04-26",
+    "last_updated": "2024-04-26"
+  }
+] 

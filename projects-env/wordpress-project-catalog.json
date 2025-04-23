@@ -1,0 +1,26 @@
+[
+  {
+    "id": "wp-site-001",
+    "name": "wp-site",
+    "type": "wordpress",
+    "framework": "wordpress",
+    "framework_version": "6.8",
+    "repoUrl": "",
+    "branch": "main",
+    "memo": "기본 워드프레스 사이트",
+    "created_at": "2024-04-24",
+    "last_updated": "2024-04-24"
+  },
+  {
+    "id": "wp-dalsoop-001",
+    "name": "wp-dalsoop",
+    "type": "wordpress",
+    "framework": "wordpress",
+    "framework_version": "6.8",
+    "repoUrl": "https://github.com/jeonghanyun/ddev-wp-dalsoop.git",
+    "branch": "main",
+    "memo": "WordPress Dalsoop 프로젝트 - DDEV 기반 로컬 개발 환경",
+    "created_at": "2024-04-24",
+    "last_updated": "2024-04-24"
+  }
+]
