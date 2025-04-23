@@ -26,6 +26,6 @@ ddev launch -p
 # 프로젝트 삭제 (컨테이너와 볼륨 제거)
 ddev delete
 
-# 프로젝트 unlink (도커 컨테이너 제거)
-ddev unlink
+# 프로젝트 중지 및 목록에서 제거 (데이터 유지)
+ddev stop --unlist
 ```
