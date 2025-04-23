@@ -28,4 +28,7 @@ ddev delete
 
 # 프로젝트 중지 및 목록에서 제거 (데이터 유지)
 ddev stop --unlist
+
+# 특정 프로젝트 중지 및 목록에서 제거
+ddev stop 프로젝트이름 --unlist
 ```
