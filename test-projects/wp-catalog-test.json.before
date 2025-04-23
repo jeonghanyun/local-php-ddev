@@ -1,0 +1,28 @@
+[
+  {
+    "id": "wp-test-enabled-001",
+    "name": "wp-test-enabled",
+    "type": "wordpress",
+    "framework": "wordpress",
+    "framework_version": "6.8",
+    "repoUrl": "",
+    "branch": "main",
+    "memo": "테스트용 워드프레스 (카탈로그에 추가함)",
+    "created_at": "2024-04-26",
+    "last_updated": "2024-04-26",
+    "add_to_catalog": true
+  },
+  {
+    "id": "wp-test-disabled-001",
+    "name": "wp-test-disabled",
+    "type": "wordpress",
+    "framework": "wordpress",
+    "framework_version": "6.8",
+    "repoUrl": "",
+    "branch": "main",
+    "memo": "테스트용 워드프레스 (카탈로그에 추가하지 않음)",
+    "created_at": "2024-04-26",
+    "last_updated": "2024-04-26",
+    "add_to_catalog": false
+  }
+]

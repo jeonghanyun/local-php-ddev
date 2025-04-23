@@ -37,18 +37,5 @@
     "created_at": "2024-04-26",
     "last_updated": "2024-04-26",
     "add_to_catalog": false
-  },
-  {
-    "id": "wp-test-002",
-    "name": "wp-test-site2",
-    "type": "wordpress",
-    "framework": "wordpress",
-    "framework_version": "6.8",
-    "repoUrl": "",
-    "branch": "main",
-    "memo": "테스트용 워드프레스 사이트 2 (카탈로그에 추가함)",
-    "created_at": "2024-04-26",
-    "last_updated": "2024-04-26",
-    "add_to_catalog": true
   }
 ]

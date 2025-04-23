@@ -1,0 +1,28 @@
+[
+  {
+    "id": "laravel-test-true-001",
+    "name": "laravel-test-true",
+    "type": "laravel",
+    "framework": "laravel",
+    "framework_version": "10.x",
+    "repoUrl": "https://github.com/laravel/laravel.git",
+    "branch": "main",
+    "memo": "Laravel 테스트 (카탈로그 추가 활성화)",
+    "created_at": "2025-04-24",
+    "last_updated": "2025-04-24",
+    "add_to_catalog": true
+  },
+  {
+    "id": "laravel-test-false-001",
+    "name": "laravel-test-false",
+    "type": "laravel",
+    "framework": "laravel",
+    "framework_version": "10.x",
+    "repoUrl": "https://github.com/laravel/laravel.git",
+    "branch": "main",
+    "memo": "Laravel 테스트 (카탈로그 추가 비활성화)",
+    "created_at": "2025-04-24",
+    "last_updated": "2025-04-24",
+    "add_to_catalog": false
+  }
+]

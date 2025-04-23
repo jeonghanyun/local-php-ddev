@@ -1,28 +1,28 @@
 [
   {
-    "id": "laravel-site-001",
-    "name": "laravel-site",
+    "id": "laravel-test-enabled-001",
+    "name": "laravel-test-enabled",
     "type": "laravel",
     "framework": "laravel",
     "framework_version": "10.x",
     "repoUrl": "",
     "branch": "main",
-    "memo": "기본 라라벨 사이트",
+    "memo": "테스트용 라라벨 (카탈로그에 추가함)",
     "created_at": "2024-04-26",
     "last_updated": "2024-04-26",
     "add_to_catalog": true
   },
   {
-    "id": "laravel-dalsoop-001",
-    "name": "laravel-dalsoop",
+    "id": "laravel-test-disabled-001",
+    "name": "laravel-test-disabled",
     "type": "laravel",
     "framework": "laravel",
     "framework_version": "10.x",
-    "repoUrl": "https://github.com/jeonghanyun/ddev-laravel-dalsoop.git",
+    "repoUrl": "",
     "branch": "main",
-    "memo": "Laravel Dalsoop 프로젝트 - DDEV 기반 로컬 개발 환경",
+    "memo": "테스트용 라라벨 (카탈로그에 추가하지 않음)",
     "created_at": "2024-04-26",
     "last_updated": "2024-04-26",
-    "add_to_catalog": true
+    "add_to_catalog": false
   }
-] 
+]

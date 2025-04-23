@@ -36,12 +36,17 @@ show_usage() {
   echo "  -p, --pass       관리자 비밀번호 (기본값: 임의 생성)"
   echo "  -e, --email      관리자 이메일 (기본값: admin@example.com)"
   echo "  -r, --repo       GitHub 레포지토리 URL (예: https://github.com/username/repo.git)"
+  echo "  -c, --catalog    카탈로그 파일 경로 (기본값: projects-env/wordpress-project-catalog.json)"
+  echo "  -v, --version    워드프레스 버전 (기본값: latest)"
+  echo "      --registry-only  레지스트리 업데이트 모드로 실행"
+  echo "      --no-install     설치하지 않고 레지스트리만 업데이트 (should_install=false로 설정)"
   echo ""
   echo "예시:"
   echo "  $0 --name my-wp-site"
   echo "  $0 -n my-wp-site -d /path/to/projects"
   echo "  $0 -n my-wp-site -i -t \"내 워드프레스 사이트\" -u admin -p password -e admin@example.com"
   echo "  $0 -n my-wp-site -r https://github.com/username/wp-template.git"
+  echo "  $0 -n my-wp-site --no-install     # 설치하지 않고 레지스트리에만 추가"
 }
 
 # DDEV 설치 확인 및 설치
@@ -274,39 +279,26 @@ add_to_project_list() {
   local project_name=$1
   local script_dir=$2
   
-  # 환경 변수 파일 로드
-  local env_file="$ROOT_DIR/projects-env/.env"
-  local project_list_file=""
-  
-  if [ -f "$env_file" ]; then
-    # .env 파일에서 PROJECT_LIST_PATH 변수를 읽어옴
-    project_list_path=$(grep "PROJECT_LIST_PATH=" "$env_file" | cut -d'=' -f2)
-    if [ -n "$project_list_path" ]; then
-      project_list_file="$project_list_path"
-    else
-      project_list_file="$ROOT_DIR/projects-env/project-list.json"
-    fi
-  else
-    project_list_file="$ROOT_DIR/projects-env/project-list.json"
-  fi
+  # 카탈로그 파일 경로 설정
+  local catalog_file="$ROOT_DIR/$CATALOG_PATH"
   
   if [ "$DRY_RUN" == "true" ]; then
-    log_info "[DRY RUN] 프로젝트 '$project_name'를 프로젝트 목록 파일에 추가합니다: $project_list_file"
+    log_info "[DRY RUN] 프로젝트 '$project_name'를 프로젝트 목록 파일에 추가합니다: $catalog_file"
     return 0
   fi
   
-  # projects-env 디렉토리 확인 및 생성
-  mkdir -p "$(dirname "$project_list_file")"
-  log_info "프로젝트 목록 파일: $project_list_file"
+  # 카탈로그 파일 디렉토리 확인 및 생성
+  mkdir -p "$(dirname "$catalog_file")"
+  log_info "프로젝트 카탈로그 파일: $catalog_file"
   
-  # project-list.json 파일이 없으면 생성
-  if [ ! -f "$project_list_file" ]; then
-    echo '[]' > "$project_list_file"
-    log_info "프로젝트 목록 파일 생성: $project_list_file"
+  # 카탈로그 파일이 없으면 생성
+  if [ ! -f "$catalog_file" ]; then
+    echo '[]' > "$catalog_file"
+    log_info "프로젝트 카탈로그 파일 생성: $catalog_file"
   fi
   
   # 현재 프로젝트 목록 가져오기
-  local projects=$(cat "$project_list_file")
+  local projects=$(cat "$catalog_file")
   
   # 현재 날짜
   local current_date=$(date +%Y-%m-%d)
@@ -322,12 +314,24 @@ add_to_project_list() {
   
   # 프로젝트 이름이 이미 목록에 있는지 확인
   if echo "$projects" | grep -q "\"name\":\"$project_name\""; then
-    log_info "프로젝트 '$project_name'는 이미 프로젝트 목록에 있습니다."
-  else
+    # 이미 카탈로그에 있는 프로젝트인 경우 add_to_catalog 값 확인
+    local add_to_catalog=$(echo "$projects" | grep -o "{[^{]*\"name\":\"$project_name\"[^}]*}" | grep -o "\"add_to_catalog\":[^,}]*" | cut -d':' -f2 | tr -d ' ')
+    
+    log_info "프로젝트 '$project_name'에 대한 add_to_catalog 값: $add_to_catalog"
+    
+    if [ "$add_to_catalog" == "false" ]; then
+      log_info "프로젝트 '$project_name'의 카탈로그 추가 설정이 false입니다. 카탈로그에 추가하지 않습니다."
+      return 0
+    else
+      log_info "프로젝트 '$project_name'는 이미 프로젝트 카탈로그에 있습니다."
+    fi
+  
+    log_info "프로젝트 '$project_name'을 카탈로그에 새로 추가합니다."
+    
     # JSON 파싱 및 수정
     if [ "$projects" == "[]" ]; then
       # 빈 목록인 경우
-      cat > "$project_list_file" << EOF
+      cat > "$catalog_file" << EOF
 [
   {
     "id": "$project_id",
@@ -339,14 +343,15 @@ add_to_project_list() {
     "branch": "main",
     "memo": "WordPress 프로젝트",
     "created_at": "$current_date",
-    "last_updated": "$current_date"
+    "last_updated": "$current_date",
+    "add_to_catalog": true
   }
 ]
 EOF
     else
       # 마지막 닫는 대괄호 제거하고 새 항목 추가
       local temp_file=$(mktemp)
-      sed '$ s/]$/,/' "$project_list_file" > "$temp_file"
+      sed '$ s/]$/,/' "$catalog_file" > "$temp_file"
       cat >> "$temp_file" << EOF
   {
     "id": "$project_id",
@@ -358,14 +363,125 @@ EOF
     "branch": "main",
     "memo": "WordPress 프로젝트",
     "created_at": "$current_date",
-    "last_updated": "$current_date"
+    "last_updated": "$current_date",
+    "add_to_catalog": true
   }
 ]
 EOF
-      mv "$temp_file" "$project_list_file"
+      mv "$temp_file" "$catalog_file"
     fi
     
-    log_info "프로젝트 '$project_name'를 프로젝트 목록에 추가했습니다."
+    log_info "프로젝트 '$project_name'를 프로젝트 카탈로그에 추가했습니다."
+  fi
+  
+  # 추가: ddev-projects/ddev-project-registry.json 파일에 자세한 정보 추가
+  update_project_registry "$project_name" "$project_dir" "$SHOULD_INSTALL"
+}
+
+# 프로젝트 레지스트리 파일 업데이트 함수
+update_project_registry() {
+  local project_name="$1"
+  local project_dir="$2"
+  local framework_version="${3:-latest}"
+  local project_id="${project_name}-$(( RANDOM % 10000 ))"
+  local current_date=$(date +%Y-%m-%d)
+  local local_url="https://${project_name}.ddev.site"
+  
+  # 레지스트리 파일 위치 확인
+  if [ -z "$DDEV_PROJECT_REGISTRY" ]; then
+    DDEV_PROJECT_REGISTRY="${ROOT_DIR}/ddev-projects/ddev-project-registry.json"
+  fi
+  
+  log_info "프로젝트 레지스트리 경로: $DDEV_PROJECT_REGISTRY"
+  
+  # 레지스트리 디렉토리 확인 및 생성
+  local registry_dir=$(dirname "$DDEV_PROJECT_REGISTRY")
+  if [ ! -d "$registry_dir" ]; then
+    mkdir -p "$registry_dir"
+  fi
+  
+  # 레지스트리 파일이 존재하지 않으면 새로 생성
+  if [ ! -f "$DDEV_PROJECT_REGISTRY" ]; then
+    log_info "레지스트리 파일이 존재하지 않습니다. 새로 생성합니다."
+    echo "[]" > "$DDEV_PROJECT_REGISTRY"
+  fi
+  
+  # 설치 상태 설정 (--no-install 옵션에 따라)
+  local installed_status=true
+  if [ "$NO_INSTALL" = true ]; then
+    installed_status=false
+  fi
+  
+  # 임시 파일에 새 프로젝트 정보 추가
+  local temp_file=$(mktemp)
+  
+  # 레지스트리 파일이 비어있는지 확인
+  if [ "$(cat "$DDEV_PROJECT_REGISTRY")" = "[]" ]; then
+    # 빈 레지스트리에 첫 번째 항목 추가
+    cat > "$temp_file" << EOF
+[
+  {
+    "id": "${project_id}",
+    "name": "${project_name}",
+    "type": "wordpress",
+    "framework": "wordpress",
+    "framework_version": "${framework_version}",
+    "repoUrl": "",
+    "branch": "main",
+    "local_url": "${local_url}",
+    "directory": "${project_dir}",
+    "db_name": "db",
+    "db_user": "db",
+    "php_version": "8.1",
+    "webserver_type": "nginx-fpm",
+    "should_install": ${installed_status},
+    "memo": "WordPress 사이트",
+    "created_at": "${current_date}",
+    "last_updated": "${current_date}",
+    "last_used": "${current_date}"
+  }
+]
+EOF
+  else
+    # 기존 레지스트리에 항목 추가
+    jq --arg id "${project_id}" \
+       --arg name "${project_name}" \
+       --arg version "${framework_version}" \
+       --arg url "${local_url}" \
+       --arg dir "${project_dir}" \
+       --arg date "${current_date}" \
+       --argjson installed "${installed_status}" \
+       '. += [{
+            "id": $id,
+            "name": $name,
+            "type": "wordpress",
+            "framework": "wordpress",
+            "framework_version": $version,
+            "repoUrl": "",
+            "branch": "main",
+            "local_url": $url,
+            "directory": $dir,
+            "db_name": "db",
+            "db_user": "db",
+            "php_version": "8.1",
+            "webserver_type": "nginx-fpm",
+            "should_install": $installed,
+            "memo": "WordPress 사이트",
+            "created_at": $date,
+            "last_updated": $date,
+            "last_used": $date
+        }]' "$DDEV_PROJECT_REGISTRY" > "$temp_file"
+  fi
+  
+  # 임시 파일을 레지스트리 파일로 이동
+  mv "$temp_file" "$DDEV_PROJECT_REGISTRY"
+  
+  log_info "프로젝트 '${project_name}'이(가) 레지스트리에 추가되었습니다."
+  
+  # 디버깅을 위해 레지스트리 내용 출력
+  if [ "$DEBUG" = true ]; then
+    log_debug "업데이트된 레지스트리 내용:"
+    cat "$DDEV_PROJECT_REGISTRY"
   fi
 }
 
@@ -473,15 +589,13 @@ hooks:
 # 메인 스크립트 시작
 
 # 기본값 설정
-PROJECT_NAME="wp-site"  # 기본 프로젝트 이름
+PROJECT_NAME=""  # 필수 값으로 변경
 PROJECT_DIR=""
 DRY_RUN="false"
-AUTO_INSTALL="true"  # 기본적으로 자동 설치 활성화
-SITE_TITLE="WordPress 사이트"
-ADMIN_USER="admin"
-ADMIN_PASS="admin"  # 기본 관리자 비밀번호
-ADMIN_EMAIL="admin@example.com"
-REPO_URL=""  # GitHub 레포지토리 URL
+REGISTRY_ONLY="false"
+SHOULD_INSTALL="true"  # 기본적으로 설치 수행
+WP_VERSION="latest"
+CATALOG_PATH="projects-env/wordpress-project-catalog.json"  # 기본 카탈로그 파일 경로
 
 # 명령줄 인수 파싱
 while (( "$#" )); do
@@ -506,46 +620,12 @@ while (( "$#" )); do
         exit 1
       fi
       ;;
-    -i|--install)
-      AUTO_INSTALL="true"
-      shift
-      ;;
-    -t|--title)
+    -v|--version)
       if [ -n "$2" ] && [ ${2:0:1} != "-" ]; then
-        SITE_TITLE=$2
+        WP_VERSION=$2
         shift 2
       else
-        log_error "오류: --title 인수 누락"
-        show_usage
-        exit 1
-      fi
-      ;;
-    -u|--user)
-      if [ -n "$2" ] && [ ${2:0:1} != "-" ]; then
-        ADMIN_USER=$2
-        shift 2
-      else
-        log_error "오류: --user 인수 누락"
-        show_usage
-        exit 1
-      fi
-      ;;
-    -p|--pass)
-      if [ -n "$2" ] && [ ${2:0:1} != "-" ]; then
-        ADMIN_PASS=$2
-        shift 2
-      else
-        log_error "오류: --pass 인수 누락"
-        show_usage
-        exit 1
-      fi
-      ;;
-    -e|--email)
-      if [ -n "$2" ] && [ ${2:0:1} != "-" ]; then
-        ADMIN_EMAIL=$2
-        shift 2
-      else
-        log_error "오류: --email 인수 누락"
+        log_error "오류: --version 인수 누락"
         show_usage
         exit 1
       fi
@@ -560,8 +640,26 @@ while (( "$#" )); do
         exit 1
       fi
       ;;
+    -c|--catalog)
+      if [ -n "$2" ] && [ ${2:0:1} != "-" ]; then
+        CATALOG_PATH=$2
+        shift 2
+      else
+        log_error "오류: --catalog 인수 누락"
+        show_usage
+        exit 1
+      fi
+      ;;
     --dry-run)
       DRY_RUN="true"
+      shift
+      ;;
+    --registry-only)
+      REGISTRY_ONLY="true"
+      shift
+      ;;
+    --no-install)
+      SHOULD_INSTALL="false"
       shift
       ;;
     -h|--help)
@@ -587,7 +685,7 @@ done
 
 # 필수 인수 확인
 if [ -z "$PROJECT_NAME" ]; then
-  log_error "프로젝트 이름을 지정해야 합니다."
+  log_error "프로젝트 이름을 지정해야 합니다. (-n 또는 --name 옵션 사용)"
   show_usage
   exit 1
 fi
@@ -601,11 +699,31 @@ if [ -z "$PROJECT_DIR" ]; then
   PROJECT_DIR="$ROOT_DIR/ddev-projects/$PROJECT_NAME"
 fi
 
+# 레지스트리 파일 경로 설정
+if [ -n "$DDEV_PROJECT_REGISTRY" ]; then
+  REGISTRY_FILE="$DDEV_PROJECT_REGISTRY"
+else
+  REGISTRY_FILE="$ROOT_DIR/ddev-projects/ddev-project-registry.json"
+fi
+
+# 메인 로직
+if [ "$REGISTRY_ONLY" == "true" ]; then
+  log_info "레지스트리 업데이트 모드로 실행합니다."
+  update_project_registry "$PROJECT_NAME" "$PROJECT_DIR" "$SHOULD_INSTALL"
+  exit 0
+fi
+
 # 설치 시작
 if [ "$DRY_RUN" == "true" ]; then
   log_info "[DRY RUN] WordPress DDEV 프로젝트 '$PROJECT_NAME' 설치를 시뮬레이션합니다."
 else
-  log_info "WordPress DDEV 프로젝트 '$PROJECT_NAME' 설치를 시작합니다."
+  if [ "$SHOULD_INSTALL" == "true" ]; then
+    log_info "WordPress DDEV 프로젝트 '$PROJECT_NAME' 설치를 시작합니다."
+  else
+    log_info "WordPress DDEV 프로젝트 '$PROJECT_NAME'의 설치를 건너뛰고 레지스트리에만 추가합니다."
+    update_project_registry "$PROJECT_NAME" "$PROJECT_DIR" "$SHOULD_INSTALL"
+    exit 0
+  fi
 fi
 
 # WordPress 자동 설치 옵션 출력

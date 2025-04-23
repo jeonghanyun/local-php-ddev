@@ -1,0 +1,14 @@
+  {
+    "id": "laravel-new-001",
+    "name": "laravel-new",
+    "type": "laravel",
+    "framework": "laravel",
+    "framework_version": "10.x",
+    "repoUrl": "https://github.com/laravel/laravel.git",
+    "branch": "main",
+    "memo": "새로 추가된 프로젝트",
+    "created_at": "2025-04-24",
+    "last_updated": "2025-04-24",
+    "add_to_catalog": true
+  }
+]

@@ -1,0 +1,22 @@
+[
+  {
+    "id": "wp-test-registry-7359",
+    "name": "wp-test-registry",
+    "type": "wordpress",
+    "framework": "wordpress",
+    "framework_version": "false",
+    "repoUrl": "",
+    "branch": "main",
+    "local_url": "https://wp-test-registry.ddev.site",
+    "directory": "/Users/yunjeonghan/Documents/WORK/Repo/Repo_ddev/registry-test/wp-test-registry",
+    "db_name": "db",
+    "db_user": "db",
+    "php_version": "8.1",
+    "webserver_type": "nginx-fpm",
+    "should_install": true,
+    "memo": "WordPress 사이트",
+    "created_at": "2025-04-24",
+    "last_updated": "2025-04-24",
+    "last_used": "2025-04-24"
+  }
+]
