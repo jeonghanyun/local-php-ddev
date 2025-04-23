@@ -48,11 +48,11 @@ show_usage() {
 get_all_projects() {
   # project-list.json 파일 확인
   if [ ! -f "$PROJECT_LIST_FILE" ]; then
-    log_warning "프로젝트 목록 파일을 찾을 수 없습니다: $PROJECT_LIST_FILE"
-    log_info "새 프로젝트 목록 파일을 생성합니다."
+    log_warning "프로젝트 목록 파일을 찾을 수 없습니다: $PROJECT_LIST_FILE" >&2
+    log_info "새 프로젝트 목록 파일을 생성합니다." >&2
     mkdir -p "$PROJECT_DIR"
     echo '[]' > "$PROJECT_LIST_FILE"
-    return 0
+    return 1
   fi
   
   # 프로젝트 목록 가져오기
@@ -60,12 +60,13 @@ get_all_projects() {
   
   # 빈 목록 확인
   if [ "$projects_json" == "[]" ]; then
-    log_info "설치된 프로젝트가 없습니다."
-    return 0
+    log_info "설치된 프로젝트가 없습니다." >&2
+    return 1
   fi
   
   # JSON 배열에서 각 프로젝트 이름을 추출
   echo "$projects_json" | sed 's/\[//g' | sed 's/\]//g' | sed 's/,//g' | sed 's/"//g'
+  return 0
 }
 
 # 프로젝트 백업
@@ -157,13 +158,19 @@ cleanup_all_projects() {
       log_info "작업이 취소되었습니다."
       exit 0
     fi
+  else
+    log_info "사용자 확인 없이 진행합니다."
   fi
+  
+  # 프로젝트 목록 출력
+  log_info "프로젝트 삭제를 시작합니다..."
   
   # 프로젝트 목록 가져오기
   local projects=$(get_all_projects)
+  local exit_code=$?
   
   # 프로젝트가 없는 경우
-  if [ -z "$projects" ]; then
+  if [ $exit_code -ne 0 ] || [ -z "$projects" ]; then
     log_info "삭제할 프로젝트가 없습니다."
     
     # 프로젝트 디렉토리 정리 (project-list.json 제외)
@@ -175,6 +182,14 @@ cleanup_all_projects() {
     log_info "모든 프로젝트 디렉토리가 정리되었습니다."
     exit 0
   fi
+  
+  # 프로젝트 목록 표시
+  log_info "다음 프로젝트들이 삭제됩니다:"
+  local count=1
+  for project in $projects; do
+    log_info "  $count. $project"
+    count=$((count + 1))
+  done
   
   # 모든 프로젝트 삭제
   log_info "모든 프로젝트 삭제 시작..."
