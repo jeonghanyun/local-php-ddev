@@ -102,6 +102,36 @@ backup_project() {
   fi
 }
 
+# 프로젝트 디렉토리 백업
+backup_project_dir() {
+  local project_name=$1
+  local project_dir="$PROJECT_DIR/$project_name"
+  
+  # 프로젝트 디렉토리 확인
+  if [ ! -d "$project_dir" ]; then
+    log_warning "프로젝트 디렉토리가 존재하지 않습니다: $project_dir"
+    return 0
+  fi
+  
+  # 백업 디렉토리 생성
+  mkdir -p "$BACKUPS_DIR"
+  
+  # 날짜 형식의 타임스탬프
+  local date_suffix=$(date +"%Y%m%d_%H%M%S")
+  local backup_file="$BACKUPS_DIR/${project_name}_dir_backup_$date_suffix.tar.gz"
+  
+  log_info "프로젝트 디렉토리 '$project_name' 압축 백업 중..."
+  
+  # 프로젝트 디렉토리 압축
+  if tar -czf "$backup_file" -C "$PROJECT_DIR" "$project_name"; then
+    log_info "프로젝트 디렉토리 백업 생성: $backup_file"
+    return 0
+  else
+    log_warning "프로젝트 디렉토리 백업 생성 실패: $project_name"
+    return 1
+  fi
+}
+
 # 프로젝트 삭제
 delete_project() {
   local project_name=$1
@@ -109,7 +139,11 @@ delete_project() {
   
   # 백업 옵션이 활성화된 경우
   if [ "$with_backup" == "true" ]; then
+    # 데이터베이스 백업
     backup_project "$project_name"
+    
+    # 프로젝트 디렉토리 백업
+    backup_project_dir "$project_name"
   fi
   
   # DDEV 프로젝트 삭제

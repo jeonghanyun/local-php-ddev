@@ -49,8 +49,8 @@ extract_project_name_from_file() {
   local backup_file="$1"
   local filename="$(basename "$backup_file")"
   
-  # 파일명 형식이 project_db_backup_date.sql.gz인 경우
-  if [[ "$filename" =~ (.*)_db_backup_ ]]; then
+  # 파일명 형식이 project_db_backup_date.sql.gz 또는 project_dir_backup_date.tar.gz인 경우
+  if [[ "$filename" =~ (.*)_(db|dir)_backup_ ]]; then
     local project_name="${BASH_REMATCH[1]}"
     echo "$project_name"
     return 0
@@ -58,6 +58,64 @@ extract_project_name_from_file() {
   
   # 형식에 맞지 않는 경우
   return 1
+}
+
+# 디렉토리 백업 파일 찾기
+find_dir_backup() {
+  local project_name="$1"
+  
+  # 백업 디렉토리 확인
+  if [ ! -d "$BACKUPS_DIR" ]; then
+    return 1
+  fi
+  
+  # 프로젝트 이름에 해당하는 디렉토리 백업 파일 찾기 (최신 파일)
+  # 먼저 루트 백업 디렉토리에서 찾기
+  local dir_backup=$(find "$BACKUPS_DIR" -maxdepth 1 -name "${project_name}_dir_backup_*.tar.gz" | sort -r | head -n 1)
+  
+  # 없으면 directories 서브디렉토리에서 찾기
+  if [ -z "$dir_backup" ] && [ -d "$BACKUPS_DIR/directories" ]; then
+    dir_backup=$(find "$BACKUPS_DIR/directories" -name "${project_name}_dir_backup_*.tar.gz" | sort -r | head -n 1)
+  fi
+  
+  if [ -n "$dir_backup" ] && [ -f "$dir_backup" ]; then
+    echo "$dir_backup"
+    return 0
+  fi
+  
+  return 1
+}
+
+# 디렉토리 백업 복원
+restore_dir_backup() {
+  local backup_file="$1"
+  local project_name="$2"
+  local project_dir="$PROJECT_DIR/$project_name"
+  
+  # 백업 파일 확인
+  if [ ! -f "$backup_file" ]; then
+    log_error "디렉토리 백업 파일을 찾을 수 없습니다: $backup_file"
+    return 1
+  fi
+  
+  # 기존 프로젝트 디렉토리가 있으면 삭제
+  if [ -d "$project_dir" ]; then
+    log_info "기존 프로젝트 디렉토리 삭제 중..."
+    rm -rf "$project_dir"
+  fi
+  
+  # 부모 디렉토리 생성
+  mkdir -p "$PROJECT_DIR"
+  
+  # 백업 압축 해제
+  log_info "디렉토리 백업 파일 복원 중: $backup_file"
+  if tar -xzf "$backup_file" -C "$PROJECT_DIR"; then
+    log_info "프로젝트 디렉토리 복원 완료"
+    return 0
+  else
+    log_error "프로젝트 디렉토리 복원 실패"
+    return 1
+  fi
 }
 
 # 백업 파일 목록 표시
@@ -70,7 +128,36 @@ list_backups() {
   log_info "사용 가능한 백업 파일:"
   local count=1
   
+  # 데이터베이스 백업 파일
   for backup_file in "$BACKUPS_DIR"/*.sql.gz; do
+    if [ -f "$backup_file" ]; then
+      local filename="$(basename "$backup_file")"
+      local project_name=""
+      
+      # 파일명에서 프로젝트 이름 추출 시도
+      if extract_project_name_from_file "$backup_file" > /dev/null; then
+        project_name="$(extract_project_name_from_file "$backup_file")"
+      fi
+      
+      # 파일 크기
+      local file_size="$(du -h "$backup_file" | cut -f1)"
+      
+      # 파일 날짜
+      local file_date="$(date -r "$backup_file" "+%Y-%m-%d %H:%M:%S")"
+      
+      # 프로젝트 이름이 추출된 경우
+      if [ -n "$project_name" ]; then
+        echo "  $count. $filename (프로젝트: $project_name, 크기: $file_size, 날짜: $file_date)"
+      else
+        echo "  $count. $filename (크기: $file_size, 날짜: $file_date)"
+      fi
+      
+      count=$((count + 1))
+    fi
+  done
+  
+  # 디렉토리 백업 파일
+  for backup_file in "$BACKUPS_DIR"/*.tar.gz; do
     if [ -f "$backup_file" ]; then
       local filename="$(basename "$backup_file")"
       local project_name=""
@@ -187,11 +274,19 @@ restore_backup() {
   local project_name="$2"
   local project_type="$3"
   local auto_yes="$4"
+  local project_dir="$PROJECT_DIR/$project_name"
+  local current_dir=$(pwd)
   
   # 백업 파일 확인
   if [ ! -f "$backup_file" ]; then
     log_error "백업 파일을 찾을 수 없습니다: $backup_file"
     return 1
+  fi
+  
+  # 디렉토리 백업 파일이 있는지 확인
+  local dir_backup=""
+  if dir_backup=$(find_dir_backup "$project_name"); then
+    log_info "프로젝트 디렉토리 백업을 찾았습니다: $dir_backup"
   fi
   
   # 사용자 확인 (auto_yes가 true가 아닌 경우)
@@ -222,13 +317,24 @@ restore_backup() {
     ddev delete -O "$project_name" &>/dev/null
   fi
   
-  # 프로젝트 설정
-  log_info "프로젝트 '$project_name' 설정 중..."
-  setup_project "$project_name" "$project_type"
-  
-  if [ $? -ne 0 ]; then
-    log_error "프로젝트 설정 실패"
-    return 1
+  # 디렉토리 백업이 있으면 복원
+  if [ -n "$dir_backup" ]; then
+    log_info "프로젝트 디렉토리 백업을 복원합니다..."
+    restore_dir_backup "$dir_backup" "$project_name"
+    
+    if [ $? -ne 0 ]; then
+      log_error "프로젝트 디렉토리 복원 실패"
+      return 1
+    fi
+  else
+    # 디렉토리 백업이 없으면 새로 프로젝트 설정
+    log_info "프로젝트 '$project_name' 설정 중..."
+    setup_project "$project_name" "$project_type"
+    
+    if [ $? -ne 0 ]; then
+      log_error "프로젝트 설정 실패"
+      return 1
+    fi
   fi
   
   # DDEV 시작
