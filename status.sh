@@ -68,6 +68,41 @@ show_all_projects() {
   log_title "======= 모든 DDEV 프로젝트 상태 ======="
   echo "$projects"
   echo ""
+  
+  log_title "======= 실행 중인 프로젝트 접속 정보 ======="
+  # 실행 중인 각 프로젝트의 URL 표시
+  local has_running=false
+  while IFS= read -r line; do
+    local project_name=$(echo "$line" | awk '{print $1}')
+    local status=$(echo "$line" | awk '{print $2}')
+    
+    # Router 행 무시
+    if [ "$project_name" = "Router" ]; then
+      continue
+    fi
+    
+    # 상태가 running인 프로젝트만 URL 표시
+    if [[ "$status" == *"running"* ]]; then
+      has_running=true
+      local url=$(ddev describe $project_name | grep -o 'https://.*\.ddev\.site' | head -n 1)
+      if [ -n "$url" ]; then
+        log_project " - $project_name: $url"
+        
+        # WordPress 프로젝트인 경우 관리자 페이지 URL도 표시
+        if ddev describe $project_name | grep -q "wordpress"; then
+          log_info "   WordPress 관리자: ${url}/wp-admin/"
+        fi
+      else
+        log_project " - $project_name: URL을 가져올 수 없습니다."
+      fi
+    fi
+  done <<< "$(echo "$projects")"
+  
+  if [ "$has_running" = false ]; then
+    log_warning " 실행 중인 프로젝트가 없습니다."
+  fi
+  
+  echo ""
   log_info "특정 프로젝트 상세 정보: $0 -n 프로젝트이름"
 }
 
@@ -88,7 +123,25 @@ show_project_list() {
   while read -r project; do
     if [ -n "$project" ]; then
       project=$(echo "$project" | xargs)  # 공백 제거
-      echo " - $project"
+      
+      # 프로젝트 경로 확인
+      local project_path="$script_dir/ddev-projects/$project"
+      
+      # 프로젝트 URL 확인 (실행 중인 경우)
+      local project_url=""
+      if ddev list | grep -q "^$project"; then
+        project_url=$(ddev describe $project | grep -o 'https://.*\.ddev\.site' | head -n 1)
+        if [ -n "$project_url" ]; then
+          project_url="(URL: $project_url)"
+        fi
+      fi
+      
+      if [ -d "$project_path" ]; then
+        echo " - $project (경로: $project_path) $project_url"
+      else
+        echo " - $project (경로를 찾을 수 없음) $project_url"
+      fi
+      
       ((count++))
     fi
   done <<< "$projects"
