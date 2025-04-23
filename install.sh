@@ -28,7 +28,7 @@ show_usage() {
   echo "옵션:"
   echo "  -t, --type       프로젝트 유형 (wordpress 또는 laravel) [필수]"
   echo "  -n, --name       프로젝트 이름 [필수]"
-  echo "  -d, --directory  프로젝트 설치 디렉토리 (기본값: 현재 디렉토리 내의 프로젝트 이름)"
+  echo "  -d, --directory  프로젝트 설치 디렉토리 (기본값: 현재 디렉토리 내의 ddev-projects/프로젝트이름)"
   echo "  -h, --help       도움말 표시"
   echo ""
   echo "예시:"
@@ -114,6 +114,18 @@ create_project() {
   # .ddev 디렉토리 생성
   mkdir -p .ddev
   
+  # public 디렉토리 생성
+  mkdir -p public
+  
+  # 프로젝트 유형별 기본 파일 생성
+  if [ "$project_type" == "wordpress" ]; then
+    echo "<?php echo 'WordPress 프로젝트 시작'; ?>" > public/index.php
+    touch public/.gitkeep
+  elif [ "$project_type" == "laravel" ]; then
+    echo "<?php echo 'Laravel 프로젝트 시작'; ?>" > public/index.php
+    touch public/.gitkeep
+  fi
+  
   # config.yaml 복사
   log_info "DDEV 설정 파일 복사 중..."
   cp "$settings_dir/config.yaml" .ddev/config.yaml
@@ -145,6 +157,37 @@ create_project() {
     log_info "WordPress 관리자 페이지: $url/wp-admin/"
   elif [ "$project_type" == "laravel" ]; then
     log_info "Laravel Artisan 명령 실행: ddev exec php artisan"
+  fi
+  
+  # 프로젝트를 ddev-projects 목록에 추가
+  add_to_project_list "$project_name" "$script_dir"
+}
+
+# 프로젝트를 project-list.json에 추가
+add_to_project_list() {
+  local project_name=$1
+  local script_dir=$2
+  local project_list_file="$script_dir/ddev-projects/project-list.json"
+  
+  # ddev-projects 디렉토리 확인 및 생성
+  mkdir -p "$script_dir/ddev-projects"
+  
+  # project-list.json 파일이 없으면 생성
+  if [ ! -f "$project_list_file" ]; then
+    echo '[]' > "$project_list_file"
+  fi
+  
+  # 현재 프로젝트 목록 가져오기
+  local projects=$(cat "$project_list_file")
+  
+  # 프로젝트 이름이 이미 목록에 있는지 확인
+  if echo "$projects" | grep -q "\"$project_name\""; then
+    log_info "프로젝트 '$project_name'는 이미 프로젝트 목록에 있습니다."
+  else
+    # 프로젝트 목록에 이름 추가
+    local updated_projects=$(echo "$projects" | sed 's/\[/\[ "'"$project_name"'", /' | sed 's/\[ "/\["/; s/, \]/\]/')
+    echo "$updated_projects" > "$project_list_file"
+    log_info "프로젝트 '$project_name'를 프로젝트 목록에 추가했습니다."
   fi
 }
 
@@ -229,9 +272,12 @@ if [ "$PROJECT_TYPE" != "wordpress" ] && [ "$PROJECT_TYPE" != "laravel" ]; then
   exit 1
 fi
 
+# 스크립트 디렉토리 가져오기
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
 # 프로젝트 디렉토리 설정
 if [ -z "$PROJECT_DIR" ]; then
-  PROJECT_DIR="$(pwd)/$PROJECT_NAME"
+  PROJECT_DIR="$SCRIPT_DIR/ddev-projects/$PROJECT_NAME"
 fi
 
 # 설치 시작
