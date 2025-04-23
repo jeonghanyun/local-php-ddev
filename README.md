@@ -1,6 +1,76 @@
-# DDEV 프로젝트
+# DDEV 프로젝트 관리 스크립트
 
-이 저장소는 DDEV를 사용한 개발 환경 설정을 위한 프로젝트입니다.
+이 저장소는 DDEV를 사용한 WordPress 및 Laravel 개발 환경 설정 및 관리를 위한 스크립트를 제공합니다.
+
+## 기능
+
+- WordPress 및 Laravel 프로젝트 자동 설치
+- 프로젝트 URL 관리
+- 설정 파일 자동화
+
+## 요구 사항
+
+- Docker
+- DDEV (자동으로 설치됨)
+
+## 설치 및 사용
+
+### 프로젝트 설치
+
+메인 설치 스크립트를 사용하여 WordPress 또는 Laravel 프로젝트를 설치할 수 있습니다:
+
+```bash
+./install.sh --type wordpress --name my-wordpress-site
+./install.sh --type laravel --name my-laravel-app
+```
+
+### 설치 옵션
+
+```
+옵션:
+  -t, --type       프로젝트 유형 (wordpress 또는 laravel) [필수]
+  -n, --name       프로젝트 이름 [필수]
+  -d, --directory  프로젝트 설치 디렉토리 (기본값: 현재 디렉토리 내의 ddev-projects/프로젝트이름)
+  -h, --help       도움말 표시
+      --dry-run    실제 설치 없이 테스트 (테스트 목적)
+```
+
+### 개별 설치 스크립트 사용
+
+WordPress 및 Laravel 프로젝트를 위한 개별 설치 스크립트도 직접 사용할 수 있습니다:
+
+#### WordPress 설치
+
+```bash
+./ddev-setup-settings/wordpress/install-wordpress.sh -n my-wordpress-site
+```
+
+#### Laravel 설치
+
+```bash
+./ddev-setup-settings/laravel/install-laravel.sh -n my-laravel-app
+```
+
+### URL 관리
+
+모든 또는 특정 DDEV 프로젝트 URL을 표시합니다:
+
+```bash
+# 모든 프로젝트 URL 표시
+./urls.sh
+
+# 실행 중인 프로젝트 URL만 표시
+./urls.sh -r
+
+# 특정 프로젝트 URL 표시
+./urls.sh -n my-project-name
+```
+
+## 유지 관리
+
+프로젝트 설정 파일은 `ddev-setup-settings` 디렉토리에 저장됩니다:
+- WordPress 설정: `ddev-setup-settings/wordpress/`
+- Laravel 설정: `ddev-setup-settings/laravel/`
 
 ## 개요
 

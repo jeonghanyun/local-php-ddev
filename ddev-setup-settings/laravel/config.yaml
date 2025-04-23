@@ -12,7 +12,4 @@ database:
   type: mysql
   version: "8.0"
 nodejs_version: "20"
-hooks:
-  post-start:
-    - exec: "if [ ! -f artisan ]; then composer create-project --prefer-dist laravel/laravel:^11.0 . && chmod -R 775 storage bootstrap/cache; fi"
 composer_version: "2" 

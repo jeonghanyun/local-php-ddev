@@ -1,16 +1,40 @@
-# DDEV 프로젝트 관련 무시 파일
+# DDEV-specific files
+.ddev/config.local.yaml
+.ddev/docker-compose.yaml
+.ddev/db_snapshots
+.ddev/.global_commands
+.ddev/.homeadditions
+.ddev/commands
+.ddev/.gitpod*
+.ddev/traefik
+.ddev/import-db/*.tgz
+.ddev/mutagen
 
-# 테스트 디렉토리
-test-ddev-projects/
+# Project backups
+backups/
 
-# 실제 프로젝트 디렉토리 (인덱스 파일만 추적)
-ddev-projects/*/
-!ddev-projects/README.md
+# Project directories
+ddev-projects/*
+!ddev-projects/.gitkeep
 !ddev-projects/project-list.json
+!ddev-projects/README.md
 
-# OS 관련 파일
+# Temp files
+tmp/
+temp/
 .DS_Store
 Thumbs.db
 
-# 백업 파일
-*.bak 
+# IDE settings
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*~
+
+# Node.js modules
+node_modules/
+
+# Composer
+vendor/ 

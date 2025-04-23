@@ -21,20 +21,22 @@ log_error() {
 
 # 스크립트 사용법 출력
 show_usage() {
-  echo "DDEV 프로젝트 설치 스크립트"
+  echo "Laravel DDEV 프로젝트 설치 스크립트"
   echo ""
   echo "사용법: $0 [옵션]"
   echo ""
   echo "옵션:"
-  echo "  -t, --type       프로젝트 유형 (wordpress 또는 laravel) [필수]"
   echo "  -n, --name       프로젝트 이름 [필수]"
   echo "  -d, --directory  프로젝트 설치 디렉토리 (기본값: 현재 디렉토리 내의 ddev-projects/프로젝트이름)"
   echo "  -h, --help       도움말 표시"
   echo "      --dry-run    실제 설치 없이 테스트 (테스트 목적)"
+  echo "  -i, --install    Laravel 자동 설치 (기본값: 활성화)"
+  echo "      --no-install Laravel 자동 설치 비활성화"
   echo ""
   echo "예시:"
-  echo "  $0 --type wordpress --name my-wp-site"
-  echo "  $0 -t laravel -n my-laravel-app -d /path/to/projects"
+  echo "  $0 --name my-laravel-app"
+  echo "  $0 -n my-laravel-app -d /path/to/projects"
+  echo "  $0 -n my-laravel-app --no-install"
 }
 
 # DDEV 설치 확인 및 설치
@@ -100,11 +102,95 @@ check_docker() {
   log_info "Docker가 실행 중입니다."
 }
 
-# 프로젝트 생성
-create_project() {
-  local project_type=$1
-  local project_name=$2
-  local project_dir=$3
+# Laravel 프로젝트 자동 설치
+install_laravel() {
+  local project_name=$1
+  local project_dir=$2
+  local install_success=false
+  
+  if [ "$DRY_RUN" == "true" ]; then
+    log_info "[DRY RUN] Laravel 자동 설치를 시뮬레이션합니다."
+    return 0
+  fi
+  
+  log_info "Laravel 자동 설치를 시작합니다..."
+  
+  # 현재 디렉토리 확인
+  local current_dir=$(pwd)
+  
+  # 프로젝트 디렉토리로 이동
+  cd "$PROJECT_DIR" || { log_error "디렉토리 $PROJECT_DIR로 이동할 수 없습니다."; exit 1; }
+  
+  # Laravel 설치 명령 실행
+  log_info "Laravel 프레임워크 설치 중..."
+  
+  # ssh를 통한 Laravel 설치
+  if ddev ssh <<EOF
+    # 기존 파일 제거
+    rm -rf *
+    rm -rf .[^.]*
+    
+    # Laravel 설치
+    composer create-project --prefer-dist laravel/laravel:^12.0 .
+    if [ $? -ne 0 ]; then
+      exit 1
+    fi
+    
+    # 권한 설정
+    chmod -R 775 storage bootstrap/cache
+    
+    # 환경 설정
+    php artisan key:generate
+    if [ $? -ne 0 ]; then
+      exit 1
+    fi
+    
+    # 마이그레이션
+    php artisan migrate
+    if [ $? -ne 0 ]; then
+      exit 1
+    fi
+    
+    # 캐시 클리어
+    php artisan config:clear
+    php artisan cache:clear
+    php artisan route:clear
+    php artisan view:clear
+    
+    exit 0
+EOF
+  then
+    log_info "Laravel 설치가 완료되었습니다!"
+    log_info "애플리케이션 URL: https://$project_name.ddev.site"
+    install_success=true
+  else
+    log_error "Laravel 설치 중 오류가 발생했습니다."
+  fi
+  
+  # 기존 디렉토리로 돌아가기
+  cd "$current_dir" || { log_error "디렉토리 $current_dir로 이동할 수 없습니다."; exit 1; }
+  
+  # 설치 실패 시 정리
+  if [ "$install_success" != "true" ]; then
+    # 실패 시 ddev 프로젝트 정리
+    log_warning "설치 실패로 인해 자원을 정리합니다..."
+    
+    # ddev 프로젝트 중지 및 삭제
+    log_info "DDEV 프로젝트 정리 중..."
+    ddev delete -O "$project_name"
+    rm -rf "$PROJECT_DIR"
+    
+    log_error "Laravel 설치 실패. 프로젝트가 삭제되었습니다."
+    return 1
+  fi
+  
+  return 0
+}
+
+# Laravel 프로젝트 생성
+create_laravel_project() {
+  local project_name=$1
+  local project_dir=$2
   
   # 스크립트 디렉토리 가져오기
   local script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
@@ -120,7 +206,7 @@ create_project() {
   log_info "프로젝트 디렉토리: $project_dir"
   
   # 설정 파일 복사 경로
-  local settings_dir="$script_dir/ddev-setup-settings/$project_type"
+  local settings_dir="$script_dir"
   
   if [ ! -d "$settings_dir" ] && [ "$DRY_RUN" != "true" ]; then
     log_error "설정 디렉토리를 찾을 수 없습니다: $settings_dir"
@@ -128,18 +214,10 @@ create_project() {
   fi
   
   # DDEV 프로젝트 설정
-  log_info "DDEV 프로젝트 ($project_type) 설정 중..."
+  log_info "Laravel DDEV 프로젝트 설정 중..."
   
   if [ "$DRY_RUN" == "true" ]; then
     log_info "[DRY RUN] .ddev 디렉토리를 생성합니다."
-    log_info "[DRY RUN] public 디렉토리를 생성합니다."
-    
-    if [ "$project_type" == "wordpress" ]; then
-      log_info "[DRY RUN] WordPress 기본 파일을 생성합니다."
-    elif [ "$project_type" == "laravel" ]; then
-      log_info "[DRY RUN] Laravel 기본 파일을 생성합니다."
-    fi
-    
     log_info "[DRY RUN] $settings_dir/config.yaml 파일을 복사하고 프로젝트 이름을 $project_name로 설정합니다."
     log_info "[DRY RUN] ddev start 명령을 실행합니다."
     log_info "[DRY RUN] 프로젝트를 project-list.json에 추가합니다."
@@ -147,14 +225,12 @@ create_project() {
     # .ddev 디렉토리 생성
     mkdir -p .ddev
     
-    # public 디렉토리 생성
-    mkdir -p public
-    
-    # 프로젝트 유형별 기본 파일 생성
-    if [ "$project_type" == "wordpress" ]; then
-      echo "<?php echo 'WordPress 프로젝트 시작'; ?>" > public/index.php
-      touch public/.gitkeep
-    elif [ "$project_type" == "laravel" ]; then
+    # 자동 설치가 활성화되지 않은 경우에만 기본 파일 생성
+    if [ "$AUTO_INSTALL" != "true" ]; then
+      # public 디렉토리 생성
+      mkdir -p public
+      
+      # Laravel 기본 파일 생성
       echo "<?php echo 'Laravel 프로젝트 시작'; ?>" > public/index.php
       touch public/.gitkeep
     fi
@@ -185,15 +261,21 @@ create_project() {
     log_info "  ddev stop        - 프로젝트 중지"
     log_info "  ddev describe    - 프로젝트 정보 확인"
     
-    # 프로젝트 유형별 추가 정보
-    if [ "$project_type" == "wordpress" ]; then
-      log_info "WordPress 관리자 페이지: $url/wp-admin/"
-    elif [ "$project_type" == "laravel" ]; then
-      log_info "Laravel Artisan 명령 실행: ddev exec php artisan"
+    # Laravel 특화 명령어 안내
+    log_info "Laravel Artisan 명령 실행: ddev exec php artisan"
+    
+    # Laravel 자동 설치가 활성화된 경우
+    if [ "$AUTO_INSTALL" == "true" ]; then
+      install_laravel "$project_name" "$PROJECT_DIR"
+      install_result=$?
+      if [ $install_result -ne 0 ]; then
+        log_error "Laravel 설치에 실패했습니다. 다시 시도하거나 수동으로 설치해주세요."
+        exit 1
+      fi
     fi
     
     # 프로젝트를 ddev-projects 목록에 추가
-    add_to_project_list "$project_name" "$script_dir"
+    add_to_project_list "$project_name" "$SCRIPT_DIR"
   fi
 }
 
@@ -233,27 +315,14 @@ add_to_project_list() {
 # 메인 스크립트 시작
 
 # 기본값 설정
-PROJECT_TYPE=""
-PROJECT_NAME=""
+PROJECT_NAME="laravel-app"  # 기본 프로젝트 이름
 PROJECT_DIR=""
 DRY_RUN="false"
-
-# 스크립트 디렉토리 가져오기
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+AUTO_INSTALL="true"  # 기본적으로 자동 설치 활성화
 
 # 명령줄 인수 파싱
 while (( "$#" )); do
   case "$1" in
-    -t|--type)
-      if [ -n "$2" ] && [ ${2:0:1} != "-" ]; then
-        PROJECT_TYPE=$2
-        shift 2
-      else
-        log_error "오류: --type 인수 누락"
-        show_usage
-        exit 1
-      fi
-      ;;
     -n|--name)
       if [ -n "$2" ] && [ ${2:0:1} != "-" ]; then
         PROJECT_NAME=$2
@@ -273,6 +342,14 @@ while (( "$#" )); do
         show_usage
         exit 1
       fi
+      ;;
+    -i|--install)
+      AUTO_INSTALL="true"
+      shift
+      ;;
+    --no-install)
+      AUTO_INSTALL="false"
+      shift
       ;;
     --dry-run)
       DRY_RUN="true"
@@ -300,67 +377,40 @@ while (( "$#" )); do
 done
 
 # 필수 인수 확인
-if [ -z "$PROJECT_TYPE" ]; then
-  log_error "프로젝트 유형을 지정해야 합니다."
-  show_usage
-  exit 1
-fi
-
 if [ -z "$PROJECT_NAME" ]; then
   log_error "프로젝트 이름을 지정해야 합니다."
   show_usage
   exit 1
 fi
 
-# 지원되는 프로젝트 유형 확인
-if [ "$PROJECT_TYPE" != "wordpress" ] && [ "$PROJECT_TYPE" != "laravel" ]; then
-  log_error "지원되지 않는 프로젝트 유형입니다: $PROJECT_TYPE"
-  log_error "지원되는 유형: wordpress, laravel"
-  exit 1
-fi
+# 스크립트 디렉토리 가져오기
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+ROOT_DIR="$( cd "$SCRIPT_DIR/../.." && pwd )"
 
 # 프로젝트 디렉토리 설정
 if [ -z "$PROJECT_DIR" ]; then
-  PROJECT_DIR="$SCRIPT_DIR/ddev-projects/$PROJECT_NAME"
+  PROJECT_DIR="$ROOT_DIR/ddev-projects/$PROJECT_NAME"
 fi
 
-# 설치 스크립트 경로 설정
-if [ "$PROJECT_TYPE" == "wordpress" ]; then
-  INSTALL_SCRIPT="$SCRIPT_DIR/ddev-setup-settings/wordpress/install-wordpress.sh"
-else
-  INSTALL_SCRIPT="$SCRIPT_DIR/ddev-setup-settings/laravel/install-laravel.sh"
-fi
-
-# 설치 스크립트가 존재하는지 확인
-if [ ! -f "$INSTALL_SCRIPT" ]; then
-  log_error "설치 스크립트를 찾을 수 없습니다: $INSTALL_SCRIPT"
-  exit 1
-fi
-
-# 설치 명령 구성
-INSTALL_CMD="$INSTALL_SCRIPT -n $PROJECT_NAME"
-
-# 디렉토리 옵션 추가
-if [ -n "$PROJECT_DIR" ]; then
-  INSTALL_CMD="$INSTALL_CMD -d $PROJECT_DIR"
-fi
-
-# Dry-run 옵션 추가
+# 설치 시작
 if [ "$DRY_RUN" == "true" ]; then
-  INSTALL_CMD="$INSTALL_CMD --dry-run"
+  log_info "[DRY RUN] Laravel DDEV 프로젝트 '$PROJECT_NAME' 설치를 시뮬레이션합니다."
+else
+  log_info "Laravel DDEV 프로젝트 '$PROJECT_NAME' 설치를 시작합니다."
 fi
 
-# 설치 스크립트 실행
-log_info "$PROJECT_TYPE 프로젝트 설치를 시작합니다..."
-log_info "실행 명령: $INSTALL_CMD"
-
-# 실행
-$INSTALL_CMD
-
-# 실행 결과 확인
-if [ $? -ne 0 ]; then
-  log_error "프로젝트 설치에 실패했습니다."
-  exit 1
+# Laravel 자동 설치 옵션 출력
+if [ "$AUTO_INSTALL" == "true" ] && [ "$DRY_RUN" != "true" ]; then
+  log_info "Laravel 자동 설치가 활성화되었습니다."
 fi
 
-log_info "$PROJECT_TYPE 프로젝트 설치가 완료되었습니다." 
+# DDEV 및 Docker 확인
+check_or_install_ddev
+check_docker
+
+# Laravel 프로젝트 생성
+create_laravel_project "$PROJECT_NAME" "$PROJECT_DIR"
+
+if [ "$DRY_RUN" == "true" ]; then
+  log_info "[DRY RUN] 설치 시뮬레이션이 완료되었습니다. 실제 설치는 --dry-run 옵션을 제거하세요."
+fi 
