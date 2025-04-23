@@ -68,15 +68,18 @@ else
   log_info "실제 모드: 실제 DDEV 프로젝트가 생성됩니다."
 fi
 
+# 스크립트 디렉토리 설정
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && cd .. && pwd )"
+TESTS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
 # 테스트를 위한 임시 디렉토리 생성
-TEST_DIR="test-ddev-projects"
+TEST_DIR="$TESTS_DIR/test-ddev-projects"
 if [ -d "$TEST_DIR" ]; then
   log_warning "기존 테스트 디렉토리를 삭제합니다: $TEST_DIR"
   rm -rf "$TEST_DIR"
 fi
 
 mkdir -p "$TEST_DIR"
-SCRIPT_DIR="$(pwd)"
 
 log_info "테스트 디렉토리를 생성했습니다: $TEST_DIR"
 
@@ -112,7 +115,7 @@ else
   log_info "실제 모드: WordPress 프로젝트를 생성합니다."
   
   # 설치 스크립트 실행
-  "$SCRIPT_DIR/install.sh" -t wordpress -n "$WP_PROJECT" -d "$SCRIPT_DIR/$TEST_DIR/$WP_PROJECT"
+  "$SCRIPT_DIR/install.sh" -t wordpress -n "$WP_PROJECT" -d "$TEST_DIR/$WP_PROJECT"
   
   if [ $? -ne 0 ]; then
     test_failed "WordPress 프로젝트 생성에 실패했습니다."
@@ -154,7 +157,7 @@ else
   log_info "실제 모드: Laravel 프로젝트를 생성합니다."
   
   # 설치 스크립트 실행
-  "$SCRIPT_DIR/install.sh" -t laravel -n "$LARAVEL_PROJECT" -d "$SCRIPT_DIR/$TEST_DIR/$LARAVEL_PROJECT"
+  "$SCRIPT_DIR/install.sh" -t laravel -n "$LARAVEL_PROJECT" -d "$TEST_DIR/$LARAVEL_PROJECT"
   
   if [ $? -ne 0 ]; then
     test_failed "Laravel 프로젝트 생성에 실패했습니다."
@@ -185,8 +188,8 @@ log_success "모든 테스트가 성공적으로 완료되었습니다!"
 
 # 실제 실행을 위한 명령어 안내
 log_info "실제 프로젝트 생성을 위해 다음 명령어를 사용하세요:"
-log_info "./install.sh -t wordpress -n my-wordpress-site"
-log_info "./install.sh -t laravel -n my-laravel-site"
+log_info "$SCRIPT_DIR/install.sh -t wordpress -n my-wordpress-site"
+log_info "$SCRIPT_DIR/install.sh -t laravel -n my-laravel-site"
 
 # 테스트 정리
 if [ "$DRY_RUN" = false ] && [ "$SKIP_CLEANUP" = false ]; then
@@ -217,4 +220,5 @@ cd "$ORIGINAL_DIR" || test_failed "원래 디렉토리로 돌아갈 수 없습�
 log_info "테스트가 완료되었습니다."
 if [ "$DRY_RUN" = true ]; then
   log_info "실제 설치를 테스트하려면 다음 명령어를 실행하세요:"
-  log_info "./test-install.sh --no-dry-run" 
+  log_info "$TESTS_DIR/test-install.sh --no-dry-run" 
+fi 

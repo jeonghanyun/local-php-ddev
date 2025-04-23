@@ -23,17 +23,20 @@ log_success() {
   echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
+# 스크립트 디렉토리 설정
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && cd .. && pwd )"
+TESTS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
 # 테스트 시작 메시지
 log_info "DDEV 설치 스크립트 테스트를 시작합니다..."
 
 # 테스트를 위한 임시 디렉토리 생성
-TEST_DIR="test-ddev-projects"
+TEST_DIR="$TESTS_DIR/test-ddev-projects"
 if [ -d "$TEST_DIR" ]; then
   log_warning "기존 테스트 디렉토리를 삭제합니다: $TEST_DIR"
   rm -rf "$TEST_DIR"
 fi
 mkdir -p "$TEST_DIR"
-SCRIPT_DIR="$(pwd)"
 
 log_info "테스트 디렉토리를 생성했습니다: $TEST_DIR"
 
@@ -74,9 +77,9 @@ log_success "모든 테스트가 성공적으로 완료되었습니다!"
 
 # 실제 사용 안내
 log_info "실제 프로젝트 생성을 위해 다음 명령어를 사용하세요:"
-log_info "./install.sh -t wordpress -n my-wordpress-site"
-log_info "./install.sh -t laravel -n my-laravel-site"
+log_info "$SCRIPT_DIR/install.sh -t wordpress -n my-wordpress-site"
+log_info "$SCRIPT_DIR/install.sh -t laravel -n my-laravel-site"
 
 # 테스트 디렉토리 정리 안내
 log_info "테스트 디렉토리를 삭제하려면 다음 명령어를 실행하세요:"
-log_info "rm -rf test-ddev-projects" 
+log_info "rm -rf $TEST_DIR" 

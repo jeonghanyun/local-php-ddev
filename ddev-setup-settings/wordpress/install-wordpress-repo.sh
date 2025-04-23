@@ -6,6 +6,27 @@ YELLOW="\033[1;33m"
 RED="\033[0;31m"
 NC="\033[0m" # No Color
 
+# 관리자 권한 확인 함수
+check_sudo_access() {
+  log_info "관리자 권한 확인 중..."
+  if sudo -n true 2>/dev/null; then
+    log_info "관리자 권한이 있습니다."
+    return 0
+  else
+    log_warning "이 스크립트는 일부 작업에 관리자 권한이 필요할 수 있습니다."
+    log_info "비밀번호를 입력하세요:"
+    if sudo -v; then
+      log_info "관리자 권한이 확인되었습니다."
+      # sudo 인증 시간 연장 (기본 15분)
+      (while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &)
+      return 0
+    else
+      log_error "관리자 권한을 얻지 못했습니다. 일부 기능이 제한될 수 있습니다."
+      return 1
+    fi
+  fi
+}
+
 # 로그 함수
 log_info() {
   echo -e "${GREEN}[INFO]${NC} $1"
@@ -587,6 +608,9 @@ hooks:
 }
 
 # 메인 스크립트 시작
+
+# 관리자 권한 확인
+check_sudo_access
 
 # 기본값 설정
 PROJECT_NAME=""  # 필수 값으로 변경
