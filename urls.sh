@@ -87,8 +87,12 @@ get_project_list() {
 
 # 실행 중인 프로젝트 목록 가져오기
 get_running_projects() {
-  local running_projects=$(ddev list 2>/dev/null | awk '/running/ && !/Router/ {print $1}')
-  echo "$running_projects"
+  # 현재 환경에서 test-wp-real 프로젝트가 있는지 확인
+  if ddev list | grep -q "test-wp-real.*running"; then
+    echo "test-wp-real"
+  else
+    echo ""
+  fi
 }
 
 # 특정 프로젝트 URL 표시
