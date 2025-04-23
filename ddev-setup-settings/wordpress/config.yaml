@@ -1,0 +1,16 @@
+name: wordpress-site
+type: wordpress
+docroot: public
+php_version: "8.2"
+webserver_type: nginx-fpm
+router_http_port: "80"
+router_https_port: "443"
+xdebug_enabled: false
+additional_hostnames: []
+additional_fqdns: []
+database:
+  type: mariadb
+  version: "10.11"
+hooks:
+  post-start:
+    - exec: '[ ! -f public/wp-load.php ] && (curl -O https://wordpress.org/latest.tar.gz && tar -xzf latest.tar.gz --strip-components=1 -C public && rm latest.tar.gz) || echo "WordPress core files already present, skipping download."' 

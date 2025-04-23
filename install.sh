@@ -106,6 +106,9 @@ create_project() {
   local project_name=$2
   local project_dir=$3
   
+  # 스크립트 디렉토리 가져오기
+  local script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+  
   # 프로젝트 디렉토리 생성
   if [ "$DRY_RUN" == "true" ]; then
     log_info "[DRY RUN] 프로젝트 디렉토리를 생성합니다: $project_dir"
@@ -117,7 +120,6 @@ create_project() {
   log_info "프로젝트 디렉토리: $project_dir"
   
   # 설정 파일 복사 경로
-  local script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
   local settings_dir="$script_dir/ddev-setup-settings/$project_type"
   
   if [ ! -d "$settings_dir" ] && [ "$DRY_RUN" != "true" ]; then
