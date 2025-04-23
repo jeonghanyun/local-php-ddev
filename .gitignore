@@ -11,7 +11,8 @@
 .ddev/mutagen
 
 # Project backups
-backups/
+backups/*
+!backups/.gitkeep
 
 # Project directories
 ddev-projects/*
